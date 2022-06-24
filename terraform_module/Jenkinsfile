@@ -1,0 +1,19 @@
+pipeline{
+  agent any
+  environment {
+  TERRAFORM_PATH = "/usr/bin/"
+  PATH = "${PATH}:${TERRAFORM_PATH}"
+}
+  stages{
+    stage('terraform init'){
+      steps{
+        sh "terraform init"
+      }
+    }
+    stage('terraform apply'){
+      steps{
+        sh returnStatus: true, script: 'terraform apply -auto-approve'
+      }
+    }
+  }
+}
