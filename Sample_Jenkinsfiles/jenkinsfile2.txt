@@ -1,0 +1,97 @@
+pipeline {
+// Jenkins AWS Access & Secret key
+environment {
+AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+}
+
+options {
+// Only keep the 5 most recent builds
+buildDiscarder(logRotator(numToKeepStr:'5'))
+}
+
+agent any
+tools {
+terraform 'terraform'
+}
+
+stages {
+   // Check out from GIT, Snippet Generato from pipeline Syntax --> Checkout: Check out from version control
+    stage ("Check from GIT") {
+        steps {
+           git branch: 'master', credentialsId: 'Jenkins_terraform_ssh_repo', url: 'git@github.com:mickleissa/kobai.git'
+              }
+       }
+       // Terraform Init Stage
+    stage ("Terraform init") {
+        steps {
+            // sh 'terraform -chdir="./v.14/test_env" init -upgrade'
+             // terraform init -backend-config="bucket=kobai-s3-backend-terraform-state" -backend-config="key=stage-test-env/terraform.tfstate"
+                 sh 'terraform -chdir="./v.14/test_env" init -migrate-state'
+              }
+    }
+    // Terraform fmt Stage
+    stage ("Terraform fmt") {
+        steps {
+            sh 'terraform fmt'
+        }
+    }
+    // Terraform Validate Stage
+    stage ("Terraform validate") {
+        steps {
+            sh 'terraform validate'
+        }
+    }
+
+    // Terraform Plan Stage
+    stage ("Terraform plan") {
+        steps {
+              sh 'terraform -chdir="./v.14/test_env" plan -var-file="stage.tfvars"'
+           // sh 'terraform -chdir="./v.14/test_env" plan'
+
+        }
+    }
+
+    //  Terraform Apply Stage
+    stage ("Terraform apply") {
+        steps {
+             sh 'terraform -chdir="./v.14/test_env" apply -var-file="stage.tfvars" --auto-approve'
+            //   sh 'terraform -chdir="./v.14/test_env" apply --auto-approve'
+
+        }
+    }
+   // Approvel stage
+   stage ("DEV approval Destroy") {
+        steps {
+           echo "Taking approval from DEV Manager for QA Deployment"
+           timeout(time: 7, unit: 'DAYS') {
+           input message: 'Do you want to Destroy the Infra', submitter: 'admin'
+           }
+        }
+    }
+   // Destroy stage
+      stage ("Terraform Destroy") {
+         steps {
+            sh 'terraform -chdir="./v.14/test_env" destroy -var-file="stage.tfvars" --auto-approve'
+            // sh 'terraform -chdir="./v.14/test_env" destroy --auto-approve'
+        }
+     }
+}
+post {
+    always {
+        echo 'This will always run'
+    }
+    success {
+        echo 'This will run only if successful'
+    }
+    failure {
+        echo 'This will run only if failed'
+    }
+    unstable {
+        echo 'This will run only if the run was marked as unstable'
+    }
+    changed {
+        echo 'This will run only if the state of the Pipeline has changed'
+        echo 'For example, if the Pipeline was previously failing but is now successful'
+    }
+      }

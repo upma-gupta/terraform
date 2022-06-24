@@ -1,8 +1,9 @@
 */terraform.tfvars
 */terraform.tfstate
-*/.terraform.lock.hcl
 */terraform.tfstate.backup
 */.terraform
 */ugkey*
+*/mykey*
 .idea
 */.idea
+terraform-provider-aws
